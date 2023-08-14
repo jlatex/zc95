@@ -34,6 +34,10 @@ const uint8_t menu_bar_height = 18;   // should be even (soft button text)
 const uint8_t status_bar_height = 9;  // battery level + mode at bottom
 const uint8_t bar_width = 10;         // individual power level bar width 
 
+uint16_t _channel_old_power[MAX_CHANNELS];
+uint16_t _channel_new_power[MAX_CHANNELS];
+uint8_t _power_changed = false;
+
 CDisplay::CDisplay()
 {
     _channel_1_max_power = 0; 
@@ -99,7 +103,27 @@ uint8_t CDisplay::get_font_height()
         draw_bar_graphs(); // 489us
         
         draw_status_bar();
-  
+
+        for (uint8_t i=0; i<MAX_CHANNELS; i++) {
+            if (abs(_channel_new_power[i] - _channel_old_power[i]) > 4) {
+                _channel_old_power[i] = _channel_new_power[i];
+                _power_changed = 5; // 100mS ish time 5 so half a second
+            }
+        }
+        if (_power_changed > 0) {
+            char buffer[5] = {0};
+            hagl_bitmap_t bitmap;
+	    hagl_color_t tc = hagl_color(_hagl_backend, 0xAA, 0xAA, 0xAA);
+            for (uint8_t j=0; j<MAX_CHANNELS; j++) {
+                snprintf(buffer, sizeof(buffer), "%3d", _channel_new_power[j]/10);
+                bitmap.buffer = (uint8_t *) malloc(6 * 9 * sizeof(hagl_color_t));
+                for (uint8_t i=0; i<3; i++) {
+                    hagl_get_glyph(_hagl_backend, buffer[i], tc, &bitmap, font6x9);
+                    hagl_blit_xywh(_hagl_backend, i*18, j*27, 18, 27, &bitmap);
+                }
+            }
+            _power_changed--;
+        }
         _interuptable_section.end();
         hagl_flush(_hagl_backend); // 8us, starts/uses DMA for update
 
@@ -146,6 +170,7 @@ void CDisplay::set_power_level(uint8_t channel, int16_t front_pannel_power, int1
     if (maximum_power < 0)
         maximum_power = 0;
 
+    _channel_new_power[channel] = front_pannel_power;
     _remote_mode_active = remote_mode_active;
 
     switch (channel)
