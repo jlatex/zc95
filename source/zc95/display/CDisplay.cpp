@@ -113,15 +113,16 @@ uint8_t CDisplay::get_font_height()
         if (_power_changed > 0) {
             char buffer[5] = {0};
             hagl_bitmap_t bitmap;
-	    hagl_color_t tc = hagl_color(_hagl_backend, 0xAA, 0xAA, 0xAA);
+	        hagl_color_t tc = hagl_color(_hagl_backend, 0xAA, 0xAA, 0xAA);
+            bitmap.buffer = (uint8_t *) malloc(6 * 9 * sizeof(hagl_color_t));
             for (uint8_t j=0; j<MAX_CHANNELS; j++) {
                 snprintf(buffer, sizeof(buffer), "%3d", _channel_new_power[j]/10);
-                bitmap.buffer = (uint8_t *) malloc(6 * 9 * sizeof(hagl_color_t));
                 for (uint8_t i=0; i<3; i++) {
                     hagl_get_glyph(_hagl_backend, buffer[i], tc, &bitmap, font6x9);
                     hagl_blit_xywh(_hagl_backend, i*18, j*27, 18, 27, &bitmap);
                 }
             }
+            free(bitmap.buffer);
             _power_changed--;
         }
         _interuptable_section.end();
